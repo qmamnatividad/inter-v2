@@ -1,0 +1,31 @@
+function doPost(e) {
+  // Replace with your Google Sheet ID and sheet name
+  var sheet = SpreadsheetApp.openById("1eBTUBR3Hfkcjo8h5oPQ6DLwNpN3EnOj9WqbN2a5xjgs").getSheetByName("Sheet1");
+
+// Set up the spreadsheet
+function setupSpreadsheet() {
+  var spreadsheet = SpreadsheetApp.create("Student Data");
+  var sheet = spreadsheet.getActiveSheet();
+  sheet.appendRow(["Email", "Student Number"]);
+}
+
+  try {
+    // Parse the incoming POST request
+    var data = JSON.parse(e.postData.contents);
+
+    // Extract email and student_number from the request
+    var email = data.email;
+    var student_number = data.student_number;
+
+    // Append the data as a new row in the sheet
+    sheet.appendRow([email, student_number]);
+
+    // Return a success response
+    return ContentService.createTextOutput(JSON.stringify({status: "success"}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    // Handle errors and return a failure response
+    return ContentService.createTextOutput(JSON.stringify({status: "error", message: error.toString()}))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+}
