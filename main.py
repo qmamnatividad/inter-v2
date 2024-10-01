@@ -14,7 +14,7 @@ def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
-api_url = "https://script.google.com/macros/s/AKfycbxTvN_1fd5a7uzsKpD0wOxvK3JBGrq35c-LLJE0Wvwo3gfGjEjhN5akBg5AkbC7bLSU/exec"
+api_url = "https://script.google.com/macros/s/AKfycbw1QsMISEgLjERLaPqeNfCPHaTPQnZAUoN62PuWdss8gbdBDULu20w8uEWl1LBlC-Xykg/exec"
 
 def insert_user(email, student_number, date, time):
     current_time = datetime.now()

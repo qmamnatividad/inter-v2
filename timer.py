@@ -23,7 +23,7 @@ def send_logout_info(email, student_number, date, time, remaining_time):
         'remaining_time': remaining_time,
         'logout': True  # This flag indicates that it is a logout
     }
-    requests.post("https://script.google.com/macros/s/AKfycbxTvN_1fd5a7uzsKpD0wOxvK3JBGrq35c-LLJE0Wvwo3gfGjEjhN5akBg5AkbC7bLSU/exec", json=data, headers=headers)
+    requests.post("https://script.google.com/macros/s/AKfycbw1QsMISEgLjERLaPqeNfCPHaTPQnZAUoN62PuWdss8gbdBDULu20w8uEWl1LBlC-Xykg/exec", json=data, headers=headers)
 
 from PyQt5.QtCore import pyqtSignal
 
@@ -44,7 +44,7 @@ class TimerWindow(QMainWindow):
 
         self.set_background_image("b2.png")
 
-        self.time_remaining = 5
+        self.time_remaining = 7200
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_label)
         self.timer.start(1000)  
@@ -181,18 +181,16 @@ class TimerWindow(QMainWindow):
         if reply == QMessageBox.Yes:
             remaining_time = self.format_time(self.time_remaining)
 
-            # Strip the "Email:", "Student Number:", and "Logged In:" prefixes from the labels' text
-            email = self.email_label.text().split(": ", 1)[1]  # Extract email after "Email: "
-            student_number = self.student_number_label.text().split(": ", 1)[1]  # Extract student number after "Student Number: "
-            login_time = self.login_time_label.text().split(": ", 1)[1]  # Extract login time after "Logged In: "
+            email = self.email_label.text().split(": ", 1)[1]
+            student_number = self.student_number_label.text().split(": ", 1)[1]
+            login_time = self.login_time_label.text().split(": ", 1)[1]
 
-            # Ensure all parameters are passed correctly %Y-%m-%d
             send_logout_info(
-                email,  # Email (without the "Email:" prefix)
-                student_number,  # Student number (without the "Student Number:" prefix)
-                datetime.now().strftime("%Y-%m-%d"),  # Date/Time of login (without the "Logged In:" prefix)
-                datetime.now().strftime("%I:%M:%S %p"),  # Time at logout
-                remaining_time  # Remaining time
+                email,
+                student_number,
+                datetime.now().strftime("%Y-%m-%d"),
+                datetime.now().strftime("%I:%M:%S %p"),
+                remaining_time
             )
 
             msg_box = QMessageBox()
@@ -202,9 +200,12 @@ class TimerWindow(QMainWindow):
             msg_box.setStandardButtons(QMessageBox.Ok)
 
             screen_geometry = QDesktopWidget().availableGeometry().center()
-            msg_box.setGeometry(screen_geometry.x() - 150, screen_geometry.y() - 50, 300, 100)  # Adjust to center
+            msg_box.setGeometry(screen_geometry.x() - 150, screen_geometry.y() - 50, 300, 100)
 
             msg_box.exec_()
+
+            # Lock the computer (Windows)
+            os.system('rundll32.exe user32.dll,LockWorkStation')
 
             self.close()
 
