@@ -1,5 +1,4 @@
 import sys
-import requests
 from PyQt5.QtWidgets import QInputDialog, QApplication, QMainWindow, QLineEdit, QPushButton, QMessageBox
 from PyQt5.QtGui import QIcon, QIntValidator, QPixmap, QPalette, QBrush
 from PyQt5.QtCore import Qt
@@ -8,43 +7,22 @@ import re
 import timer
 from datetime import datetime
 import os
+import pymongo  # Add this import at the top with other imports
 
-def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for PyInstaller """
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, relative_path)
+# Add your MongoDB connection details
+MONGO_URI = "mongodb+srv://qjchermitano:7h3tL4m8qSzjU3w@itso.u2hsn.mongodb.net/"  # Replace with your MongoDB URI
+DB_NAME = "itsodb"    # Replace with your database name
+COLLECTION_NAME = "itso"  # Replace with your collection name
 
-api_url = "https://script.google.com/macros/s/AKfycbw1QsMISEgLjERLaPqeNfCPHaTPQnZAUoN62PuWdss8gbdBDULu20w8uEWl1LBlC-Xykg/exec"
-
-def insert_user(email, student_number, date, time):
-    current_time = datetime.now()
-    date = current_time.strftime("%Y-%m-%d")  # Separate date
-    time = current_time.strftime("%I:%M:%S %p")  # Separate time in 12-hour format
-
-    try:
-        headers = {'Content-Type': 'application/json'}
-        data = {
-            'email': email,
-            'student_number': student_number,
-            'date': date,  
-            'time': time  
-        }
-        response = requests.post(api_url, json=data, headers=headers)  # Add headers for JSON
-        if response.status_code == 200 and response.json().get("status") == "success":
-            return True
-        else:
-            return False
-    except Exception as e:
-        return False
-
+# Function to connect to MongoDB
+def connect_to_mongo():
+    client = pymongo.MongoClient(MONGO_URI)
+    db = client[DB_NAME]
+    return db[COLLECTION_NAME]
 
 def on_submit():
     email = name_input.text()
     student_number = student_number_input.text()
-
-    current_time = datetime.now()
-    date = current_time.strftime("%Y-%m-%d")  # Separate date
-    time = current_time.strftime("%I:%M:%S %p")  # Separate time in 12-hour format
 
     # Perform validation for email and student number
     if not re.match(r'^[\w\.-]+@tip\.edu\.ph$', email):
@@ -55,20 +33,30 @@ def on_submit():
         QMessageBox.warning(win, "Student Number Error", "Please enter a valid Student Number.")
         return
 
-    # Call insert_user with separate date and time
-    success = insert_user(email, student_number, date, time)
+    # Insert the user data into MongoDB
+    collection = connect_to_mongo()
+    current_time = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')  # Format to 'YYYY-MM-DD HH:MM:SS'
+    collection.insert_one({
+        "email": email,
+        "student_number": student_number,
+        "timestamp": current_time  # Store formatted timestamp
+    })
 
-    if success:
-        # Clear input fields and hide the window
-        name_input.clear()
-        student_number_input.clear()
-        win.hide()
+    # Clear the input fields after successful login
+    name_input.clear()
+    student_number_input.clear()
 
-        global timer_window
-        timer_window = timer.start_timer(email, student_number)
-        timer_window.timer_closed.connect(show_main_window)
-    else:
-        QMessageBox.critical(win, "Submission Error", "Failed to insert data into Google Sheets.")
+    # Proceed without inserting user data into Google Sheets
+    win.hide()
+
+    global timer_window
+    timer_window = timer.start_timer(email, student_number)
+    timer_window.timer_closed.connect(show_main_window)
+
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
 
 def show_main_window():
     """Function to show the main window when the timer window is closed.""" 

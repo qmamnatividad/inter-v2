@@ -3,27 +3,25 @@ import ctypes
 from PyQt5.QtWidgets import QMainWindow, QLabel, QMessageBox, QPushButton, QApplication, QDesktopWidget
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal
-import requests
 from datetime import datetime
 import os
+import pymongo  # Add this import at the top with other imports
 
+# Add your MongoDB connection details
+MONGO_URI = "mongodb+srv://qjchermitano:7h3tL4m8qSzjU3w@itso.u2hsn.mongodb.net/"  # Replace with your MongoDB URI
+DB_NAME = "itsodb"    # Replace with your database name
+COLLECTION_NAME = "itso"  # Replace with your collection name
+
+# Function to connect to MongoDB
+def connect_to_mongo():
+    client = pymongo.MongoClient(MONGO_URI)
+    db = client[DB_NAME]
+    return db[COLLECTION_NAME]
 
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for PyInstaller """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
-
-def send_logout_info(email, student_number, date, time, remaining_time):
-    headers = {'Content-Type': 'application/json'}
-    data = {
-        'email': email,
-        'student_number': student_number,
-        'date': date,
-        'time': time,
-        'remaining_time': remaining_time,
-        'logout': True  # This flag indicates that it is a logout
-    }
-    requests.post("https://script.google.com/macros/s/AKfycbw1QsMISEgLjERLaPqeNfCPHaTPQnZAUoN62PuWdss8gbdBDULu20w8uEWl1LBlC-Xykg/exec", json=data, headers=headers)
 
 from PyQt5.QtCore import pyqtSignal
 
@@ -83,8 +81,9 @@ class TimerWindow(QMainWindow):
         """Override the closeEvent to emit a signal and allow main window to reopen.""" 
         self.timer_closed.emit()  
         event.accept()  
+
     def set_background_image(self, image_path):
-        """Sets a background image for the window."""
+        """Sets a background image for the window.""" 
         image_path = resource_path(image_path)  
         self.background_label = QLabel(self)
         self.background_label.setGeometry(0, 0, 350, 150)  
@@ -152,45 +151,28 @@ class TimerWindow(QMainWindow):
         self.msg_box.show()
 
     def lock_pc(self):
-        """Locks the PC (Windows) when the timer ends and sends the logout data."""
-        remaining_time = self.format_time(self.time_remaining)
-
-        # Strip the "Email:", "Student Number:", and "Logged In:" prefixes from the labels' text
-        email = self.email_label.text().split(": ", 1)[1]  # Extract email after "Email: "
-        student_number = self.student_number_label.text().split(": ", 1)[1]  # Extract student number after "Student Number: "
-        login_time = self.login_time_label.text().split(": ", 1)[1]  # Extract login time after "Logged In: "
-
-        # Send logout info (similar to manual logout)
-        send_logout_info(
-            email,  # Email (without the "Email:" prefix)
-            student_number,  # Student number (without the "Student Number:" prefix)
-            datetime.now().strftime("%Y-%m-%d"),  # Date
-            datetime.now().strftime("%I:%M:%S %p"),  # Time at lock (logout)
-            remaining_time  # Remaining time
-        )
-
+        """Locks the PC (Windows) when the timer ends."""
         # Lock the workstation
         ctypes.windll.user32.LockWorkStation()
         self.close()
-
 
     def logout(self):
         reply = QMessageBox.question(self, 'Logout Confirmation',
                                  "Are you sure you want to log out? Your remaining time will be saved.",
                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
-            remaining_time = self.format_time(self.time_remaining)
+            remaining_time_str = self.format_time(self.time_remaining)
+            logout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get the current time
 
-            email = self.email_label.text().split(": ", 1)[1]
-            student_number = self.student_number_label.text().split(": ", 1)[1]
-            login_time = self.login_time_label.text().split(": ", 1)[1]
-
-            send_logout_info(
-                email,
-                student_number,
-                datetime.now().strftime("%Y-%m-%d"),
-                datetime.now().strftime("%I:%M:%S %p"),
-                remaining_time
+        # Update the MongoDB document with remaining time and logout time
+            collection = connect_to_mongo()
+            current_time = datetime.now().strftime('%I:%M:%S %p')  # Ensure you import and define this function
+            collection.update_one(
+                {"email": self.email_label.text().replace("Email: ", "")},  # Find the document by email
+                {"$set": {
+                    "remaining_time": remaining_time_str,  # Store remaining time
+                    "logout_time": current_time  # Store logout time
+                }}
             )
 
             msg_box = QMessageBox()
@@ -204,10 +186,11 @@ class TimerWindow(QMainWindow):
 
             msg_box.exec_()
 
-            # Lock the computer (Windows)
+        # Lock the computer (Windows)
             os.system('rundll32.exe user32.dll,LockWorkStation')
 
             self.close()
+
 
 def start_timer(email, student_number):
     """Creates the timer window and shows it."""
